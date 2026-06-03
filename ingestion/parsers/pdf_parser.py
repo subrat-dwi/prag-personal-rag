@@ -5,9 +5,11 @@ from logging import Logger
 from PIL import Image
 import fitz  # PyMuPDF
 import pytesseract
+from llm.ocr_cleaner import clean_ocr_text
 
 logger = Logger("__name__")
 
+#-----------------main PDF parsing function------------------------
 def parse_pdf(path: str) -> str:
     """
     Extract text from a PDF file.
@@ -48,9 +50,10 @@ def parse_pdf(path: str) -> str:
         if not text:
             logger.warning("Page %d of %s has no text. Trying with OCR...", page_number + 1, pdf_path.name)
 
+            # If the page has no extractable text, it may be a scanned image. Use OCR as a fallback.
             ocr_text = _ocr_pdf_page(str(pdf_path), page_number)
             if ocr_text:
-                pages_text.append(ocr_text)
+                pages_text.append(clean_ocr_text(ocr_text))
             else:
                 logger.warning("OCR also failed to extract text from page %d of '%s'", page_number + 1, pdf_path.name)
         
@@ -59,6 +62,7 @@ def parse_pdf(path: str) -> str:
 
     full_text = "\n".join(pages_text).strip()
 
+    # If after processing all pages we still have no text, raise an error.
     if not full_text:
         raise RuntimeError(
             f"No text could be extracted from '{path}'. "
@@ -66,6 +70,7 @@ def parse_pdf(path: str) -> str:
         
     return full_text
 
+#-----------------helper functions------------------------
 def _ocr_pdf_page(pdf_path: str, page_num: int) -> str:
     """
     Render a single PDF page as an image and run OCR on it.

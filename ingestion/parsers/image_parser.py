@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"}
 
-
+# ----------------image parsing function------------------------
 def parse_image(path: str) -> str:
     """
     Extract text from an image file using OCR.
@@ -53,7 +53,7 @@ def parse_image(path: str) -> str:
     logger.info("OCR extracted %d characters from '%s'", len(text), image_path.name)
     return text
 
-
+# -----------------helper functions------------------------
 def _preprocess(image: Image.Image) -> Image.Image:
     """
     Basic preprocessing to improve OCR accuracy.
