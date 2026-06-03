@@ -6,7 +6,7 @@ from pathlib import Path
 from ingestion.parsers import parse_file
 from ingestion.chunker import chunk_text
 from embeddings.embedder import embed_batch
-from vectorstore.qdrant_client import upsert_chunks, delete_file_chunks, list_indexed_files
+from vectorstore.qdrant_client import upsert_chunks, delete_file_chunks
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,14 @@
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from llm.utils import extract_main_content
+from config.settings import load_settings
+
+settings = load_settings()
 
 def get_llm():
     return init_chat_model(
-        model= "qwen2.5:3b-instruct",
-        model_provider="ollama"
+        model= settings.chat_model,
+        model_provider=settings.model_provider
     )
 
 #-----------------main OCR cleaning function------------------------

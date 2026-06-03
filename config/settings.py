@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
+    chat_model: str
+    model_provider: str
     embed_model: str
     qdrant_collection: str
     chunk_size: int = 500
@@ -18,6 +20,8 @@ class Settings:
         # Load .env for local development; safe to call multiple times.
         load_dotenv()
         return cls(
+            chat_model=os.getenv("CHAT_MODEL", "qwen2.5:3b-instruct"),
+            model_provider=os.getenv("MODEL_PROVIDER", "ollama"),
             embed_model=os.getenv("EMBED_MODEL", "nomic-embed-text"),
             qdrant_api_key=os.getenv("QDRANT_API_KEY"),
             qdrant_url=os.getenv("QDRANT_URL"),

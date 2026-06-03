@@ -5,7 +5,7 @@ from logging import Logger
 from PIL import Image
 import fitz  # PyMuPDF
 import pytesseract
-from llm.ocr_cleaner import clean_ocr_text
+from llm.ocr_cleaner_llm import clean_ocr_text
 
 logger = Logger("__name__")
 
