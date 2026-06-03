@@ -2,7 +2,7 @@
 
 ## What it does?
 - uses RAG to answer questions querying personal facts and figures.
-- a utility to quickly and **safely** access data like Aadhaar No., PAN No., Marks, Personal Preferences, etc
+- a utility to quickly and **safely** access data like Aadhaar No., PAN No., Marks, and Personal Facts
 
 ## Working
 1. Tracks a Dedicated Folder.

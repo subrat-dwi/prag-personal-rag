@@ -94,7 +94,8 @@ def _ocr_pdf_page(pdf_path: str, page_num: int) -> str:
     img = Image.frombytes("RGB", tuple([pix.width, pix.height]), pix.samples)
     img = img.convert("L")  # grayscale improves OCR accuracy
 
-    text = pytesseract.image_to_string(img, lang="eng").strip()
+    # OCR with both English and Hindi languages, common in Indian documents
+    text = pytesseract.image_to_string(img, lang="eng+hin").strip()
     doc.close()
 
     return text
