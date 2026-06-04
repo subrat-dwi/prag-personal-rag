@@ -1,7 +1,6 @@
 # TODO
 ## In Progress
-- Setting up a dedicated watched directory
-- Automatic Ingest, Delete and reingest flows for added, modified or removed files
+- Building API endpoints
 
 ## Next Up
 - Cloud Deployment
