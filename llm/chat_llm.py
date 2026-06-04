@@ -1,36 +1,62 @@
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import SystemMessage
+from langchain.chat_models import init_chat_model, BaseChatModel
+from langchain_core.messages import SystemMessage, HumanMessage
 from llm.utils import extract_main_content
-from retrieval.retriever import query_chunks
-from config.settings import load_settings
+from vectorstore.qdrant_client import query_chunks_by_text
+from config.settings import settings
+import logging
 
-settings = load_settings()
+logger = logging.getLogger(__name__)
 
-def get_llm():
-    return init_chat_model(
-        model= settings.chat_model,
-        model_provider=settings.model_provider
-    )
+# singleton for chat model instance
+_llm = None
+
+def get_llm() -> BaseChatModel:
+    """Returns a singleton chat model instance, initializing it if it doesn't exist."""
+    global _llm
+    if _llm is None:
+        _llm = init_chat_model(
+            model=settings.chat_model,
+            model_provider=settings.model_provider,
+        )
+    return _llm
+
+#------------------ Main chat function ------------------
+SYSTEM_PROMPT = """You are Prag, a personal assistant that answers questions strictly from provided document context.
+
+- Answer only from the context. Be direct and concise.
+- If found: answer confidently, end with [source: filename]
+- If partially found: answer what's available, note what's missing, end with [source: filename]  
+- If not found: respond only with "I couldn't find that in your documents."
+- Never guess or infer. No filler."""
+
+def format_context(chunks: list[dict]) -> str:
+    """Formats retrieved chunks into a string for LLM context. Each chunk includes text, source filename, and relevance score."""
+    if not chunks:
+        return "No relevant document chunks found."
+
+    formatted = []
+    for i, chunk in enumerate(chunks, 1):
+        formatted.append(
+            f"[Chunk {i} — {chunk['source_file']} (relevance: {chunk['score']})]"
+            f"\n{chunk['text'].strip()}"
+        )
+
+    return "\n\n---\n\n".join(formatted)
+
 
 def chat_with_llm(query: str) -> str:
-    chunks = query_chunks(query)
-    system_prompt = SystemMessage(
-        f"""You are Prag, a personal assistant who answers queries about myself based on the context I provide.
-You will be given chunks of text extracted from my documents, which may include my resume, certificates, and other files.
+    """Handles a user query by retrieving relevant document chunks and invoking the chat model with context."""
+    chunks = query_chunks_by_text(query)
 
-Your job is to answer questions about me using only the information in those chunks.
-- If the answer is not in the chunks, say "Sorry, I don't know."
-- If the answer is partially in the chunks, use only that information and say "Based on the provided information, ..."
-- Be concise and factual, avoid speculation.
+    # filter out low relevance chunks
+    chunks = [c for c in chunks if c["score"] >= 0.38]
 
-CONTEXT CHUNKS:
-{chunks}
+    context = format_context(chunks)
 
-QUESTION:
-{query}
-"""
-    )
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=f"Context from my documents:\n\n{context}\n\nQuestion: {query}"),
+    ]
 
-    llm = get_llm()
-    response = llm.invoke([system_prompt])
-    return extract_main_content(response)
+    response = get_llm().invoke(messages)
+    return extract_main_content(response.content)

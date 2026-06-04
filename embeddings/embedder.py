@@ -1,11 +1,8 @@
-# embeddings/embedder.py
-
 import logging
 from langchain_ollama import OllamaEmbeddings
-from config.settings import load_settings
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
-settings = load_settings()
 
 # module-level singleton
 _embedder = None

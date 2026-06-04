@@ -1,9 +1,7 @@
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import SystemMessage
 from llm.utils import extract_main_content
-from config.settings import load_settings
-
-settings = load_settings()
+from config.settings import settings
 
 def get_llm():
     return init_chat_model(

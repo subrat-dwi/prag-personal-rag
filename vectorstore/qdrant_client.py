@@ -8,32 +8,30 @@ from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue,
+    FilterSelector,
+    PayloadSchemaType
 )
-from config.settings import load_settings
+from config.settings import settings        # ← import singleton directly
 from ingestion.chunker import Chunk
 
 logger = logging.getLogger(__name__)
-settings = load_settings()
 
-# singleton client
+# Singleton Qdrant client instance
 _client = None
 
-
+# --------------- Qdrant interaction functions ---------------
 def get_client() -> QdrantClient:
     """
-    Returns a shared Qdrant client instance.
-    Connects to local or cloud Qdrant based on settings.
+    Returns a singleton QdrantClient instance, creating it if it doesn't exist.
     """
     global _client
     if _client is None:
         if settings.qdrant_api_key:
-            # cloud
             _client = QdrantClient(
                 url=settings.qdrant_url,
                 api_key=settings.qdrant_api_key,
             )
         else:
-            # local
             _client = QdrantClient(url=settings.qdrant_url)
 
         logger.info("Qdrant client connected to '%s'", settings.qdrant_url)
@@ -44,28 +42,39 @@ def get_client() -> QdrantClient:
 
 def _ensure_collection(client: QdrantClient) -> None:
     """
-    Creates the collection if it doesn't already exist.
-    Safe to call on every startup.
+    Ensures the Qdrant collection exists with the correct configuration.
+
+    Args:
+        client: An instance of QdrantClient to use for collection management.
     """
     existing = [c.name for c in client.get_collections().collections]
 
+    # Only create collection if it doesn't exist — avoids errors and preserves existing data
     if settings.qdrant_collection not in existing:
         client.create_collection(
             collection_name=settings.qdrant_collection,
             vectors_config=VectorParams(
                 size=settings.qdrant_vector_size,
-                distance=Distance.COSINE,  # cosine similarity for text embeddings
+                distance=Distance.COSINE,
             ),
         )
         logger.info("Created Qdrant collection '%s'", settings.qdrant_collection)
     else:
         logger.info("Collection '%s' already exists", settings.qdrant_collection)
 
+    # create payload index on source_file — required by Qdrant Cloud for filtered queries
+    # safe to call even if index already exists
+    client.create_payload_index(
+        collection_name=settings.qdrant_collection,
+        field_name="source_file",
+        field_schema=PayloadSchemaType.KEYWORD,     # keyword = exact string match
+    )
+    logger.info("Payload index ensured for 'source_file'")
+
 
 def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
     """
     Store chunks and their vectors in Qdrant.
-    Uses upsert — safe to call again on the same file, won't duplicate.
 
     Args:
         chunks: List of Chunk objects from chunker.
@@ -79,23 +88,29 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
             f"Chunks ({len(chunks)}) and vectors ({len(vectors)}) must be same length."
         )
 
+    client = get_client()       # ← assign first, consistent with other functions
+
+    # Create PointStructs including all relevant metadata in payload
     points = [
         PointStruct(
-            id=str(uuid.uuid4()),     # unique ID for each chunk
+            id=uuid.uuid4(),    # ← UUID object as ID, Qdrant client will handle conversion to string
             vector=vector,
-            payload={                  # metadata stored alongside vector
+            payload={
                 "text": chunk.text,
                 "source_file": chunk.source_file,
                 "chunk_index": chunk.chunk_index,
                 "total_chunks": chunk.total_chunks,
+                "file_hash": chunk.file_hash,
             },
         )
         for chunk, vector in zip(chunks, vectors)
     ]
 
-    get_client().upsert(
+    # Upsert points into Qdrant, waiting for completion to ensure data is available for immediate queries
+    client.upsert(
         collection_name=settings.qdrant_collection,
         points=points,
+        wait=True,              # ← wait for write to complete before returning
     )
 
     logger.info(
@@ -108,6 +123,11 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
 def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
     """
     Find the most similar chunks to a query vector.
+    Args:
+        query_vector: The embedding vector to query with.
+        top_k: The number of top results to return.
+    Returns:
+        A list of dictionaries containing 'text', 'source_file', and 'score' for each matching chunk.
     """
     client = get_client()
 
@@ -124,7 +144,7 @@ def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
             "source_file": r.payload["source_file"],
             "score": round(r.score, 4),
         }
-        for r in results.points if r.payload      # ← .points to get the list
+        for r in results.points if r.payload
     ]
 
     logger.info(
@@ -136,38 +156,97 @@ def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
     return chunks
 
 
+def query_chunks_by_text(query_text: str, top_k: int = 5) -> list[dict]:
+    """
+    Convenience wrapper — embeds query text then retrieves matching chunks.
+    Use this when you have raw text (e.g. from chat_llm).
+
+    Args:
+        query_text: Raw user query string.
+        top_k: Number of chunks to return.
+
+    Returns:
+        List of dicts with 'text', 'source_file', 'score'.
+    """
+    from embeddings.embedder import embed_text   # ← import here to avoid circular dependency
+    
+    query_vector = embed_text(query_text)
+    return query_chunks(query_vector, top_k=top_k)
+
+
 def delete_file_chunks(source_file: str) -> None:
     """
     Delete all chunks belonging to a specific file.
-    Called by the watcher when a file is removed from the watch folder.
 
     Args:
         source_file: Filename (not full path) to delete chunks for.
     """
-    get_client().delete(
+    client = get_client()
+
+    client.delete(
         collection_name=settings.qdrant_collection,
-        points_selector=Filter(
-            must=[
-                FieldCondition(
-                    key="source_file",
-                    match=MatchValue(value=source_file),
-                )
-            ]
+        points_selector=FilterSelector(
+            filter=Filter(
+                must=[
+                    FieldCondition(
+                        key="source_file",
+                        match=MatchValue(value=source_file),
+                    )
+                ]
+            )
         ),
     )
 
     logger.info("Deleted all chunks for '%s'", source_file)
 
 
+def get_file_hash_from_store(filename: str) -> str | None:
+    """
+    Retrieves the file hash for a given filename from Qdrant, if it exists.
+    Args:
+        filename: The name of the file to look up (not full path).
+    Returns:
+        The file hash as a string if found, or None if not found.
+    """
+    client = get_client()
+
+    response = client.scroll(
+        collection_name=settings.qdrant_collection,
+        scroll_filter=Filter(
+            must=[
+                FieldCondition(
+                    key="source_file",
+                    match=MatchValue(value=filename),
+                )
+            ]
+        ),
+        limit=1,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    # scroll returns a tuple — (list[ScoredPoint], next_page_offset)
+    points = response[0]      # explicitly index instead of unpacking
+
+    logger.debug(
+        "scroll for '%s' returned %d points", filename, len(points)
+    )
+
+    if not points:
+        return None
+
+    return points[0].payload.get("file_hash") if points[0].payload else None
+
 def list_indexed_files() -> list[str]:
     """
-    Returns a list of unique filenames currently indexed in Qdrant.
-    Useful for debugging and the ingest_all script to avoid re-ingesting.
+    Returns sorted list of unique filenames currently indexed in Qdrant.
     """
-    # scroll through all points and collect unique source_file values
-    results, _ = get_client().scroll(
+    client = get_client()
+
+    results, _ = client.scroll(
         collection_name=settings.qdrant_collection,
         with_payload=True,
+        with_vectors=False,                 # ← no need to fetch vectors here
         limit=1000,
     )
 
