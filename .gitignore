@@ -222,3 +222,6 @@ __marimo__/
 
 # GDRIVE Credentials
 gdrive_credentials.json
+
+# API testing file
+*.rest

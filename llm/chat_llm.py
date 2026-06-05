@@ -17,6 +17,7 @@ def get_llm() -> BaseChatModel:
         _llm = init_chat_model(
             model=settings.chat_model,
             model_provider=settings.model_provider,
+            api_key=settings.groq_api_key if settings.model_provider == "groq" else None,
         )
     return _llm
 
@@ -44,9 +45,9 @@ def format_context(chunks: list[dict]) -> str:
     return "\n\n---\n\n".join(formatted)
 
 
-def chat_with_llm(query: str) -> str:
+def chat_with_llm(query: str, top_k: int = 5) -> str:
     """Handles a user query by retrieving relevant document chunks and invoking the chat model with context."""
-    chunks = query_chunks_by_text(query)
+    chunks = query_chunks_by_text(query, top_k)
 
     # filter out low relevance chunks
     chunks = [c for c in chunks if c["score"] >= 0.38]

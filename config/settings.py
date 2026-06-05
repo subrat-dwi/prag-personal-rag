@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     google_credentials_json: str = ""       # for deployed env (Render)
     drive_folder_id: str = ""
 
+    # ── API Key for this app ───────────────────────────────────
+    prag_api_key: str = ""
+
     # ── Cross-field validation ────────────────────────────────
     @model_validator(mode="after")
     def validate_provider_config(self) -> "Settings":
