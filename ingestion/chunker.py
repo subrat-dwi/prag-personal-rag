@@ -18,7 +18,8 @@ class Chunk:
     source_file: str      # original filename
     chunk_index: int      # position in document
     total_chunks: int     # total chunks from this document
-    file_hash: str         # hash of entire file for deduplication
+    file_hash: str        # hash of entire file for deduplication
+    file_url: str         # drive url of the file
 
 
 def chunk_text(text: str, source_file: str) -> list[Chunk]:
@@ -57,7 +58,8 @@ def chunk_text(text: str, source_file: str) -> list[Chunk]:
             source_file=Path(source_file).name,
             chunk_index=i,
             total_chunks=len(raw_chunks),
-            file_hash=""
+            file_hash="",
+            file_url="",
         )
         for i, chunk in enumerate(raw_chunks)
     ]

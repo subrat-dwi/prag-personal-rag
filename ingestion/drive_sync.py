@@ -142,7 +142,15 @@ def _download_and_ingest(service, file: dict) -> None:
     tmp_path = None
     try:
         tmp_path = download_file(service, file["id"], file["name"])
-        success, error = ingest_file_safe(tmp_path, file_hash=file.get("md5Checksum", ""), source_filename=file["name"], )
+
+        # construct Drive view URL for viewing through Citation
+        file_url = f"https://drive.google.com/file/d/{file['id']}/view"
+
+        success, error = ingest_file_safe(
+            tmp_path,
+            file_hash=file.get("md5Checksum", ""),
+            source_filename=file["name"],
+            file_url = file_url)
         if not success:
             logger.error("Ingestion failed for '%s': %s", file["name"], error)
     finally:

@@ -29,7 +29,7 @@ def compute_file_hash(path: str) -> str:
     return h.hexdigest()
 
 
-def ingest_file(path: str, file_hash: str = "", source_filename: str = "") -> None:
+def ingest_file(path: str, file_hash: str = "", source_filename: str = "", file_url: str = "") -> None:
     """
     Full ingestion pipeline for a single file.
     parse → chunk → embed → store
@@ -68,9 +68,10 @@ def ingest_file(path: str, file_hash: str = "", source_filename: str = "") -> No
     except Exception as e:
         raise RuntimeError(f"Chunking failed for '{filename}': {e}") from e
 
-    #-------------------- step 3 — assign hash to all chunks ---------------------
+    #-------------------- step 3 — assign hash and file url to all chunks ---------------------
     for chunk in chunks:
         chunk.file_hash = file_hash
+        chunk.file_url = file_url
 
     #-------------------- step 4 — embed ---------------------
     try:
@@ -90,7 +91,7 @@ def ingest_file(path: str, file_hash: str = "", source_filename: str = "") -> No
     logger.info("Ingestion complete for '%s'", filename)
 
 
-def ingest_file_safe(path: str, file_hash: str = "", source_filename: str = "") -> tuple[bool, str]:
+def ingest_file_safe(path: str, file_hash: str = "", source_filename: str = "", file_url: str = "") -> tuple[bool, str]:
     """
     Wrapper around ingest_file that catches all exceptions.
     One bad file won't stop the entire batch.
@@ -100,7 +101,7 @@ def ingest_file_safe(path: str, file_hash: str = "", source_filename: str = "") 
         (False, error_message) on failure
     """
     try:
-        ingest_file(path, file_hash=file_hash, source_filename=source_filename)
+        ingest_file(path, file_hash=file_hash, source_filename=source_filename, file_url=file_url)
         return True, ""
     except Exception as e:
         logger.error("Failed to ingest '%s': %s", Path(path).name, e)
@@ -123,16 +124,16 @@ def remove_file(filename: str) -> None:
 
 
 
-# def reingest_file(path: str, file_hash: str = "") -> None:
-#     """
-#     Delete existing chunks for a file then re-ingest it.
-#     Called when a file is modified.
+def reingest_file(path: str, file_hash: str = "") -> None:
+    """
+    Delete existing chunks for a file then re-ingest it.
+    Called when a file is modified.
 
-#     Args:
-#         path: Full path to the modified file.
-#         file_hash: Pass Drive's md5Checksum if syncing from Drive.
-#     """
-#     filename = Path(path).name
-#     logger.info("Re-ingesting modified file '%s'", filename)
-#     remove_file(filename)
-#     ingest_file(path, file_hash=file_hash)
+    Args:
+        path: Full path to the modified file.
+        file_hash: Pass Drive's md5Checksum if syncing from Drive.
+    """
+    filename = Path(path).name
+    logger.info("Re-ingesting modified file '%s'", filename)
+    remove_file(filename)
+    ingest_file(path, file_hash=file_hash)

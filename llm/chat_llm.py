@@ -1,17 +1,23 @@
+# llm/chat_llm.py
+
+import logging
 from langchain.chat_models import init_chat_model, BaseChatModel
 from langchain_core.messages import SystemMessage, HumanMessage
-from llm.utils import extract_main_content
-from vectorstore.qdrant_client import query_chunks_by_text
+from pydantic import BaseModel
 from config.settings import settings
-import logging
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
-# singleton for chat model instance
 _llm = None
 
+
+class LLMResponse(BaseModel):
+    answer: str
+    used_chunk_indices: list[int]
+
+
 def get_llm() -> BaseChatModel:
-    """Returns a singleton chat model instance, initializing it if it doesn't exist."""
     global _llm
     if _llm is None:
         _llm = init_chat_model(
@@ -21,17 +27,16 @@ def get_llm() -> BaseChatModel:
         )
     return _llm
 
-#------------------ Main chat function ------------------
-SYSTEM_PROMPT = """You are Prag, a personal assistant that answers questions strictly from provided document context.
 
+SYSTEM_PROMPT = """You are Prag, a personal assistant that answers questions from document context.
 - Answer only from the context. Be direct and concise.
-- If found: answer confidently, end with [source: filename]
-- If partially found: answer what's available, note what's missing, end with [source: filename]  
-- If not found: respond only with "I couldn't find that in your documents."
-- Never guess or infer. No filler."""
+- In used_chunk_indices, list ONLY the chunk numbers [1,2,3...] that directly contributed to your answer.
+- If not found: answer with "I couldn't find that in your documents." and set used_chunk_indices to empty list.
+- Never guess or infer."""
+
 
 def format_context(chunks: list[dict]) -> str:
-    """Formats retrieved chunks into a string for LLM context. Each chunk includes text, source filename, and relevance score."""
+    """Formats retrieved chunks into a string for LLM input. Each chunk includes its source filename and relevance score."""
     if not chunks:
         return "No relevant document chunks found."
 
@@ -41,23 +46,30 @@ def format_context(chunks: list[dict]) -> str:
             f"[Chunk {i} — {chunk['source_file']} (relevance: {chunk['score']})]"
             f"\n{chunk['text'].strip()}"
         )
-
     return "\n\n---\n\n".join(formatted)
 
 
-def chat_with_llm(query: str, top_k: int = 5) -> str:
-    """Handles a user query by retrieving relevant document chunks and invoking the chat model with context."""
-    chunks = query_chunks_by_text(query, top_k)
-
-    # filter out low relevance chunks
-    chunks = [c for c in chunks if c["score"] >= 0.38]
-
+def call_llm(query: str, chunks: list[dict]) -> LLMResponse:
+    """
+    Builds prompt, calls LLM with structured output.
+    Returns LLMResponse with answer and used chunk indices.
+    """
     context = format_context(chunks)
 
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=f"Context from my documents:\n\n{context}\n\nQuestion: {query}"),
+        HumanMessage(
+            content=f"Context from my documents:\n\n{context}\n\nQuestion: {query}"
+        ),
     ]
 
-    response = get_llm().invoke(messages)
-    return extract_main_content(response.content)
+    structured_llm = get_llm().with_structured_output(LLMResponse)
+    response: LLMResponse = cast(LLMResponse, structured_llm.invoke(messages))
+
+    logger.info(
+        "LLM used chunk indices: %s for query: '%s'",
+        response.used_chunk_indices,
+        query,
+    )
+
+    return response

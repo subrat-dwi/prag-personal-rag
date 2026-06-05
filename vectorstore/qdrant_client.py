@@ -101,6 +101,7 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
                 "chunk_index": chunk.chunk_index,
                 "total_chunks": chunk.total_chunks,
                 "file_hash": chunk.file_hash,
+                "file_url": chunk.file_url,
             },
         )
         for chunk, vector in zip(chunks, vectors)
@@ -142,6 +143,7 @@ def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
         {
             "text": r.payload["text"],
             "source_file": r.payload["source_file"],
+            "file_url": r.payload.get("file_url", ""),
             "score": round(r.score, 4),
         }
         for r in results.points if r.payload
@@ -166,7 +168,7 @@ def query_chunks_by_text(query_text: str, top_k: int = 5) -> list[dict]:
         top_k: Number of chunks to return.
 
     Returns:
-        List of dicts with 'text', 'source_file', 'score'.
+        List of dicts with 'text', 'source_file', 'file_url', 'score'.
     """
     from embeddings.embedder import embed_text   # ← import here to avoid circular dependency
     
