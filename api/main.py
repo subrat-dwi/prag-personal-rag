@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import query, health
 from ingestion.drive_sync import sync_drive
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +37,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow all origins for now
-# tighten this when you know your frontend/bot URL
+# CORS middleware configuration — only allow origins specified in settings
+def get_allowed_origins() -> list[str]:
+    if settings.environment == "development":
+        return ["http://localhost:5173", "http://localhost:3000"]  # vite + cra defaults
+
+    origins = settings.allowed_origins  # comma-separated string from env
+    if not origins:
+        raise RuntimeError(
+            "ALLOWED_ORIGINS must be set in production. "
+            "Example: https://prag.vercel.app"
+        )
+
+    return [o.strip() for o in origins.split(",")]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=["X-API-Key", "Content-Type"],  # only what you actually need
+    allow_credentials=False,                       # you're using API key not cookies
+    max_age=3600,                                  # cache preflight for 1 hour
 )
 
 app.include_router(health.router, tags=["System"])

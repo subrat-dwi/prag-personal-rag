@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # ── API Key for this app ───────────────────────────────────
     prag_api_key: str = ""
 
+    # ── CORS ────────────────────────────────────────────────
+    allowed_origins: str = ""  # comma-separated string of allowed origins
+    environment: str = "development"  # "development" or "production"
+
     # ── Cross-field validation ────────────────────────────────
     @model_validator(mode="after")
     def validate_provider_config(self) -> "Settings":
