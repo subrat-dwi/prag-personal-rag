@@ -1,5 +1,5 @@
-from llm.chat_llm import chat_with_llm
 from ingestion.drive_sync import sync_drive
+from core.rag import answer_query
 import sys
 import logging
 from config.settings import settings
@@ -50,8 +50,10 @@ def main():
             break
 
         try:
-            answer = chat_with_llm(query)
-            print(f"\nAssistant: {answer}\n")
+            result = answer_query(query)
+            print(f"\nPrag: {result.answer}")
+            for source in result.sources:
+                print(f"  - {source['filename']} - {source['file_url']}\n")
         except Exception as e:
             logger.error("Query failed: %s", e)
             print(f"\nSomething went wrong: {e}\n")
