@@ -254,3 +254,33 @@ def list_indexed_files() -> list[str]:
 
     files = list({r.payload["source_file"] for r in results if r.payload})
     return sorted(files)
+
+def list_indexed_files_with_urls() -> list[dict]:
+    """
+    Returns list of unique indexed files with their Drive URLs.
+    Fetches one chunk per unique filename to get metadata.
+    """
+    client = get_client()
+
+    results, _ = client.scroll(
+        collection_name=settings.qdrant_collection,
+        with_payload=True,
+        with_vectors=False,
+        limit=1000,
+    )
+
+    seen = set()
+    files = []
+
+    for r in results:
+        if not r.payload:
+            continue
+        filename = r.payload.get("source_file")
+        if filename and filename not in seen:
+            seen.add(filename)
+            files.append({
+                "filename": filename,
+                "file_url": r.payload.get("file_url", ""),
+            })
+
+    return sorted(files, key=lambda x: x["filename"])

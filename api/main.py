@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import query, health
+from api.routes import query, health, files, auth
 from ingestion.drive_sync import sync_drive
 from config.settings import settings
 
@@ -62,4 +62,6 @@ app.add_middleware(
 )
 
 app.include_router(health.router, tags=["System"])
+app.include_router(auth.router, tags=["Auth"])
+app.include_router(files.router, tags=["Files"])
 app.include_router(query.router, tags=["RAG"])
