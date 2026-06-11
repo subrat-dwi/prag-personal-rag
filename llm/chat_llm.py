@@ -32,7 +32,7 @@ class LLMResponse(BaseModel):
                 pass
             # handle "1,3,5" without brackets
             try:
-                return [int(x.strip()) for x in v.strip("[]").split(",") if x.strip()]
+                return [int(x.strip()) for x in v.strip("'{[]}'").split(",") if x.strip()]
             except Exception:
                 return []
         if isinstance(v, int):

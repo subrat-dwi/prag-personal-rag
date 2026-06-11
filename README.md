@@ -107,7 +107,7 @@ prag/
 | Component | Tool |
 |---|---|
 | LLM (local) | Qwen2.5:3b or any model of your choice via Ollama |
-| LLM (deployed) | Llama-3.3-70b or llama-3.1-8b via Groq API |
+| LLM (deployed) | openai/gpt-oss-20b or llama-3.1-8b via Groq API |
 | Embeddings | nomic-embed-text via Ollama |
 | Vector DB | Qdrant (local Docker) / Qdrant Cloud |
 | PDF parsing | pypdf + pymupdf |
@@ -172,7 +172,7 @@ EMBED_MODEL=nomic-embed-text
 QDRANT_URL=https://your-cluster.qdrant.io
 QDRANT_API_KEY=your_qdrant_api_key
 QDRANT_COLLECTION=personal-rag
-QDRANT_VECTOR_SIZE=768
+QDRANT_VECTOR_SIZE=768 # or according to your embedding model
 
 # Google Drive
 GOOGLE_CREDENTIALS_PATH=gdrive_credentials.json

@@ -1,7 +1,7 @@
 import logging
 from langchain_ollama import OllamaEmbeddings
 from pydantic import BaseModel
-from fastembed import SparseEmbedding, SparseTextEmbedding
+from fastembed import SparseEmbedding, SparseTextEmbedding, TextEmbedding
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ _embedder = None
 _sparse_embedder = None
 
 # ----------- embedding functions --------------
-def get_embedder() -> tuple[OllamaEmbeddings, SparseTextEmbedding]:
+def get_embedder() -> tuple[TextEmbedding, SparseTextEmbedding]:
     """
     Returns a shared embedder instance.
     Singleton pattern avoids reloading the model on every call.
@@ -30,10 +30,11 @@ def get_embedder() -> tuple[OllamaEmbeddings, SparseTextEmbedding]:
     global _sparse_embedder
 
     if _embedder is None:
-        _embedder = OllamaEmbeddings(
-            model=settings.embed_model,
-            # base_url=settings.ollama_base_url,
-        )
+        # _embedder = OllamaEmbeddings(
+        #     model=settings.embed_model,
+        #     # base_url=settings.ollama_base_url,
+        # )
+        _embedder = TextEmbedding(model_name=settings.embed_model)
         logger.info("Embedder initialized with model '%s'", settings.embed_model)
     if _sparse_embedder is None:
         _sparse_embedder = SparseTextEmbedding(
@@ -64,10 +65,10 @@ def embed_text(text: str) -> EmbeddedQuery:
 
     try:
         dense_embedder, sparse_embedder = get_embedder()
-        dense_vectors = dense_embedder.embed_query(text)
-        sparse_vectors = list(sparse_embedder.query_embed(text))
+        dense_vectors = list(dense_embedder.query_embed([text]))
+        sparse_vectors = list(sparse_embedder.query_embed([text]))
         return EmbeddedQuery(
-            dense_vectors=dense_vectors,
+            dense_vectors=numpy_as_list(dense_vectors)[0],
             sparse_vectors=sparse_as_dict(sparse_vectors)
         )
     
@@ -100,11 +101,11 @@ def embed_batch(texts: list[str]) -> EmbeddedDocs:
 
     try:
         dense_embedder, sparse_embedder = get_embedder()
-        dense_vectors = dense_embedder.embed_documents(texts)
+        dense_vectors = list(dense_embedder.embed(texts))
         sparse_vectors = list(sparse_embedder.embed(texts))
         logger.info("Embedded batch of %d texts", len(texts))
         return EmbeddedDocs(
-            dense_vectors=dense_vectors,
+            dense_vectors=numpy_as_list(dense_vectors),
             sparse_vectors=sparse_as_dict(sparse_vectors)
         )
     except Exception as e:
@@ -125,3 +126,12 @@ def sparse_as_dict(sparse_vectors: list[SparseEmbedding]):
         })
 
     return processed_sparse
+
+def numpy_as_list(dense_vectors: list) -> list[list[float]]:
+    """
+    Convert list of numpy arrays to list of lists.
+    """
+    processed_dense = []
+    for vector in dense_vectors:
+        processed_dense.append(vector.tolist())
+    return processed_dense

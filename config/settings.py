@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     langsmith_project: str = "personal-rag"
 
     # ── Embeddings ────────────────────────────────────────────
-    embed_model: str = "nomic-embed-text"
+    embed_model: str = "BAAI/bge-small-en-v1.5"
     sparse_embed_model: str = "Qdrant/bm25"
 
     # ── Ollama ────────────────────────────────────────────────
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str = ""
     qdrant_collection: str = "personal-rag"
-    qdrant_vector_size: int = 768
+    qdrant_vector_size: int = 384  # must match the dimension of the embedding model
 
     # ── Chunking ──────────────────────────────────────────────
     chunk_size: int = 500
