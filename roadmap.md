@@ -2,7 +2,6 @@
 ## In Progress
 
 ## Next Up
-- Hybrid Retrieval (adding BM25)
 - Streaming Responses
 - Ensuring Rate Limit, CORS
 - Cloud Deployment
@@ -22,4 +21,4 @@
 - Google Drive integration: sync a Drive folder and ingest files automatically
 - Smart ingestion pipeline: deduplication, incremental updates, and reingest/delete handling
 - Building API endpoints
- 
+- Hybrid Retrieval (adding BM25)

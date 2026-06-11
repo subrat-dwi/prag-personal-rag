@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     # ── Embeddings ────────────────────────────────────────────
     embed_model: str = "nomic-embed-text"
+    sparse_embed_model: str = "Qdrant/bm25"
 
     # ── Ollama ────────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"

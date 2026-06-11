@@ -4,15 +4,21 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import (
     Distance,
     VectorParams,
+    SparseVectorParams,
     PointStruct,
     Filter,
     FieldCondition,
     MatchValue,
     FilterSelector,
-    PayloadSchemaType
+    PayloadSchemaType,
+    SparseVector,
+    Prefetch,
+    FusionQuery,
+    Fusion
 )
-from config.settings import settings        # ← import singleton directly
+from config.settings import settings
 from ingestion.chunker import Chunk
+from embeddings.embedder import EmbeddedDocs, EmbeddedQuery
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +59,15 @@ def _ensure_collection(client: QdrantClient) -> None:
     if settings.qdrant_collection not in existing:
         client.create_collection(
             collection_name=settings.qdrant_collection,
-            vectors_config=VectorParams(
+            vectors_config={
+                "dense": VectorParams(
                 size=settings.qdrant_vector_size,
                 distance=Distance.COSINE,
-            ),
+                )
+            },
+            sparse_vectors_config={
+                "sparse": SparseVectorParams()
+            }
         )
         logger.info("Created Qdrant collection '%s'", settings.qdrant_collection)
     else:
@@ -72,7 +83,7 @@ def _ensure_collection(client: QdrantClient) -> None:
     logger.info("Payload index ensured for 'source_file'")
 
 
-def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
+def upsert_chunks(chunks: list[Chunk], vectors: EmbeddedDocs) -> None:
     """
     Store chunks and their vectors in Qdrant.
 
@@ -83,9 +94,9 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
     Raises:
         ValueError: If chunks and vectors lengths don't match.
     """
-    if len(chunks) != len(vectors):
+    if len(chunks) != len(vectors.dense_vectors):
         raise ValueError(
-            f"Chunks ({len(chunks)}) and vectors ({len(vectors)}) must be same length."
+            f"Chunks ({len(chunks)}) and vectors ({len(vectors.dense_vectors)}) must be same length."
         )
 
     client = get_client()       # ← assign first, consistent with other functions
@@ -94,7 +105,13 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
     points = [
         PointStruct(
             id=uuid.uuid4(),    # ← UUID object as ID, Qdrant client will handle conversion to string
-            vector=vector,
+            vector={
+                "dense": dense_vector,
+                "sparse": SparseVector(
+                    indices=sparse_vector.get("indices", []),
+                    values=sparse_vector.get("values", [])
+                )
+            },
             payload={
                 "text": chunk.text,
                 "source_file": chunk.source_file,
@@ -104,7 +121,7 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
                 "file_url": chunk.file_url,
             },
         )
-        for chunk, vector in zip(chunks, vectors)
+        for chunk, dense_vector, sparse_vector in zip(chunks, vectors.dense_vectors, vectors.sparse_vectors)  # ← explicitly zip all three for clarity
     ]
 
     # Upsert points into Qdrant, waiting for completion to ensure data is available for immediate queries
@@ -121,7 +138,7 @@ def upsert_chunks(chunks: list[Chunk], vectors: list[list[float]]) -> None:
     )
 
 
-def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
+def query_chunks(query_vectors: EmbeddedQuery, top_k: int = 5) -> list[dict]:
     """
     Find the most similar chunks to a query vector.
     Args:
@@ -134,7 +151,17 @@ def query_chunks(query_vector: list[float], top_k: int = 5) -> list[dict]:
 
     results = client.query_points(
         collection_name=settings.qdrant_collection,
-        query=query_vector,
+        prefetch=[
+            Prefetch(query=query_vectors.dense_vectors, using="dense", limit=20),
+            Prefetch(query=SparseVector(
+                indices=query_vectors.sparse_vectors[0].get("indices", []),
+                values=query_vectors.sparse_vectors[0].get("values", [])
+                ),
+                using="sparse",
+                limit=20
+            )
+        ],
+        query=FusionQuery(fusion=Fusion.RRF),
         limit=top_k,
         with_payload=True,
     )

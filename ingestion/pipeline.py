@@ -77,7 +77,7 @@ def ingest_file(path: str, file_hash: str = "", source_filename: str = "", file_
     try:
         texts = [chunk.text for chunk in chunks]
         vectors = embed_batch(texts)
-        logger.info("Embedded %d chunks from '%s'", len(vectors), filename)
+        logger.info("Embedded %d chunks from '%s'", len(vectors.dense_vectors), filename)
     except Exception as e:
         raise RuntimeError(f"Embedding failed for '{filename}': {e}") from e
 
