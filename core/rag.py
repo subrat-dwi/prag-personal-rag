@@ -1,9 +1,9 @@
-# core/rag.py
-
 import logging
 from dataclasses import dataclass, field
 from vectorstore.qdrant_client import query_chunks_by_text
 from llm.chat_llm import call_llm
+
+from llm.process_query_llm import process_query
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ def answer_query(query: str, top_k: int = 5) -> RAGResponse:
     Full RAG pipeline. Single entry point for CLI, API, and any future interface.
 
     Steps:
+        0. Preprocess query to improve retrieval and classify type
         1. Retrieve top-k chunks from Qdrant
         2. Filter by confidence score
         3. Deduplicate sources
@@ -39,8 +40,14 @@ def answer_query(query: str, top_k: int = 5) -> RAGResponse:
     """
     logger.info("Processing query: '%s'", query)
 
+    # step 0 — preprocess query with LLM to improve retrieval and classify type
+    processed_query = process_query(query)
+    improved_query = processed_query.improved_query
+    query_type = processed_query.query_type
+    top_k = 10 if query_type == "synthesis" else top_k  # retrieve more for synthesis queries
+
     # step 1 — retrieve
-    chunks = query_chunks_by_text(query, top_k=top_k)
+    chunks = query_chunks_by_text(improved_query, top_k=top_k)
     logger.info("Retrieved %d chunks", len(chunks))
 
     # step 2 — filter low confidence
@@ -57,7 +64,7 @@ def answer_query(query: str, top_k: int = 5) -> RAGResponse:
         )
 
     # step 4 — call LLM
-    response = call_llm(query, chunks)
+    response = call_llm(improved_query, chunks, query_type)
     answer = response.answer
     used_chunk_indices = response.used_chunk_indices
 
