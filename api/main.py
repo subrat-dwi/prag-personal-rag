@@ -55,7 +55,7 @@ def get_allowed_origins() -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
-    allow_methods=["GET", "POST"],
+    allow_methods=["*"],
     allow_headers=["X-API-Key", "Content-Type"],  # only what you actually need
     allow_credentials=False,                       # you're using API key not cookies
     max_age=3600,                                  # cache preflight for 1 hour
