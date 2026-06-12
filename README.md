@@ -19,6 +19,12 @@ PRAG lets you just ask.
 ```
 
 ---
+## Demo (using [PRAG Web Client](https://github.com/subrat-dwi/prag-web))
+<p align="center">
+  <img src="./demo-media/prag-desktop.png" width="700">
+</p>
+
+---
 
 ## Features
 
