@@ -1,28 +1,37 @@
 # PRAG — Personal RAG System
 
-> A local-first, privacy-preserving personal assistant that answers questions about you using your own documents.
+> A cloud-deployed personal assistant that answers questions about you using your own documents.
 
 PRAG solves a specific everyday problem:
+
 ```
-You're filling a form and need your PAN number.
-You're at a hospital and need your blood group.
-Someone asks for your college roll number.
-You need your internship start date for a resume update.
+You're filling a form and can't remember your college roll number.
+Someone asks for your internship start date for a reference check.
+You want a quick professional intro but don't want to rewrite it from scratch.
 
 Currently you dig through files, photos, WhatsApp, emails.
 PRAG lets you just ask.
+
+> "Summarize my technical experience for a job application."
+> "What technologies have I worked with across all my projects?"
+> "Generate a professional intro I can use in interviews."
+> "Which certificate proves my Python knowledge and when did I get it?"
 ```
+
 ---
 
 ## Features
 
 - **Natural language queries** — ask "what is my CGPA?" or "what are my technical skills?" and get precise answers
+- **Hybrid search** — combines semantic vector search with BM25 keyword search via Qdrant's native sparse+dense fusion — catches both meaning-based and exact matches like scores, IDs, and specific terms
+- **Query intelligence** — automatic spell correction, query rewriting, and classification into factual vs synthesis queries before retrieval
 - **Multi-format ingestion** — PDF, DOCX, images (with OCR), Markdown, and plain text
-- **OCR support** — extracts text from scanned documents like Aadhaar cards using Tesseract, with LLM-based cleaning for noisy output
-- **Google Drive sync** — monitors a Drive folder on startup, ingests new files, re-ingests changed files, removes deleted ones — using Drive's native `md5Checksum` for efficient diffing
-- **Local-first privacy** — raw documents never leave your machine or Drive; only vector embeddings are stored in Qdrant Cloud
-- **Provider-agnostic LLM** — runs on Ollama locally, switches to Groq on deployment with a single env var change
-- **LangSmith tracing** — full observability into prompts, retrieved chunks, and LLM responses
+- **OCR support** — extracts text from scanned documents using Tesseract with LLM-based cleaning for noisy output
+- **Google Drive sync** — syncs on startup, ingests new files, re-ingests changed files, removes deleted ones using Drive's native `md5Checksum` for efficient diffing
+- **Source citations** — every answer cites which document it came from, with a clickable link back to the file in Google Drive
+- **Provider-agnostic LLM** — Ollama locally, Groq on deployment — swap with a single env var
+- **PWA frontend** — installable on mobile, works like a native app
+- **LangSmith tracing** — full observability into prompts, retrieved chunks, and LLM responses (disabled in production)
 
 ---
 
@@ -42,8 +51,8 @@ Ingestion Pipeline
   │         │        │       │
   │    RecursiveChar  │    Qdrant
   │    TextSplitter   │    Cloud
-  │               nomic-embed-text
-  │               (via Ollama)
+  │               fastembed
+  │               
   parsers:
   ├── PDF (pypdf + OCR fallback)
   ├── DOCX (python-docx)
@@ -106,9 +115,9 @@ prag/
 
 | Component | Tool |
 |---|---|
-| LLM (local) | Qwen2.5:3b or any model of your choice via Ollama |
+| LLM (local) | Any Ollama model depending on your hardware |
 | LLM (deployed) | openai/gpt-oss-20b or llama-3.1-8b via Groq API |
-| Embeddings | nomic-embed-text via Ollama |
+| Embeddings | fastembed |
 | Vector DB | Qdrant (local Docker) / Qdrant Cloud |
 | PDF parsing | pypdf + pymupdf |
 | OCR | Tesseract via pytesseract |
@@ -117,7 +126,7 @@ prag/
 | Drive integration | Google Drive API v3 (service account) |
 | Config | pydantic-settings |
 | Observability | LangSmith |
-| API framework | FastAPI *(planned)* |
+| API framework | FastAPI |
 
 ---
 
@@ -287,16 +296,6 @@ GROQ_API_KEY=your_groq_key
 ```
 
 On every startup, Render will sync your Drive folder and update the index before serving requests.
-
----
-
-## Future Features
-
-- [ ] FastAPI layer with `/query` and `/health` endpoint
-- [ ] WhatsApp bot via Twilio (separate project, calls PRAG's API)
-- [ ] "Remember this" — store facts directly via chat without a file
-- [ ] Web UI
-- [ ] Multi-user support with auth
 
 ---
 

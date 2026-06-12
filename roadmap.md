@@ -3,7 +3,7 @@
 
 ## Next Up
 - Streaming Responses
-- Ensuring Rate Limit, CORS
+- Ensuring Rate Limit
 - Cloud Deployment
 - Dashboard (maybe)
 

@@ -2,11 +2,20 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import query, health, files, auth
+from api.routes import query, health, files, auth, sync
 from ingestion.drive_sync import sync_drive
 from config.settings import settings
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 logger = logging.getLogger(__name__)
+
+os.environ["LANGSMITH_TRACING"] = os.getenv("LANGSMITH_TRACING", "false")
+os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", "")
+os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT", "personal-rag")
+
 
 
 @asynccontextmanager
@@ -65,3 +74,4 @@ app.include_router(health.router, tags=["System"])
 app.include_router(auth.router, tags=["Auth"])
 app.include_router(files.router, tags=["Files"])
 app.include_router(query.router, tags=["RAG"])
+app.include_router(sync.router, tags=["Sync"])
