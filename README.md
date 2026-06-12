@@ -61,13 +61,13 @@ Ingestion Pipeline
   └── Plain text
         │
         ▼
-User Query (CLI)
+User Query (CLI or API)
         │
         ▼
 Embed query → Qdrant similarity search → top-k chunks
         │
         ▼
-LLM (Qwen2.5 / Groq) answers using retrieved context
+LLM (local / cloud) answers using retrieved context
 ```
 
 ---
@@ -76,37 +76,57 @@ LLM (Qwen2.5 / Groq) answers using retrieved context
 
 ```
 prag/
-│
-├── cli.py                        # entry point — syncs Drive then starts chat
-│
-├── config/
-│   └── settings.py               # pydantic-settings, all config from .env
-│
-├── ingestion/
-│   ├── drive_sync.py             # Google Drive sync — diff check + ingest
-│   ├── pipeline.py               # orchestrates parse → chunk → embed → store
-│   ├── chunker.py                # RecursiveCharacterTextSplitter + Chunk dataclass
-│   └── parsers/
-│       ├── __init__.py           # parser router — maps extension to parser
-│       ├── pdf_parser.py         # pypdf + pymupdf OCR fallback
-│       ├── image_parser.py       # pytesseract OCR
-│       ├── docx_parser.py        # python-docx
-│       ├── markdown_parser.py    # markdown → plain text
-│       └── text_parser.py        # plain .txt files
-│
-├── embeddings/
-│   └── embedder.py               # nomic-embed-text via Ollama, singleton
-│
-├── vectorstore/
-│   └── qdrant_client.py          # Qdrant CRUD — upsert, query, delete, scroll
-│
-├── llm/
-│   ├── chat_llm.py               # LLM invocation, prompt, context formatting
-│   ├── ocr_cleaner_llm.py        # LLM-based OCR noise cleaning
-│   └── utils.py                  # shared LLM utilities
-│
-└── tests/
-    └── test_drive.py
+.
+├── api
+│   ├── __init__.py
+│   ├── main.py
+│   ├── middleware.py
+│   ├── routes
+│   │   ├── auth.py
+│   │   ├── files.py
+│   │   ├── health.py
+│   │   ├── query.py
+│   │   └── sync.py
+│   └── schemas
+│       └── query.py
+├── cli.py
+├── config
+│   ├── __init__.py
+│   └── settings.py
+├── core
+│   ├── __init__.py
+│   └── rag.py
+├── Dockerfile
+├── embeddings
+│   ├── embedder.py
+│   └── __init__.py
+├── gdrive_credentials.json
+├── ingestion
+│   ├── chunker.py
+│   ├── drive_sync.py
+│   ├── __init__.py
+│   ├── parsers
+│   │   ├── docx_parser.py
+│   │   ├── image_parser.py
+│   │   ├── __init__.py
+│   │   ├── markdown_parser.py
+│   │   ├── pdf_parser.py
+│   │   └── text_parser.py
+│   └── pipeline.py
+├── llm
+│   ├── chat_llm.py
+│   ├── __init__.py
+│   ├── ocr_cleaner_llm.py
+│   ├── process_query_llm.py
+│   └── utils.py
+├── README.md
+├── requirements.txt
+├── roadmap.md
+├── tests
+│   └── test_drive.py
+└── vectorstore
+    ├── __init__.py
+    └── qdrant_client.py
 ```
 
 ---

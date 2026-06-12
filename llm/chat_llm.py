@@ -32,7 +32,7 @@ class LLMResponse(BaseModel):
                 pass
             # handle "1,3,5" without brackets
             try:
-                return [int(x.strip()) for x in v.strip("'{[]}'").split(",") if x.strip()]
+                return [int(x.strip()) for x in v.strip("'{[]}'\"").split(",") if x.strip()]
             except Exception:
                 return []
         if isinstance(v, int):
@@ -61,12 +61,15 @@ FACTUAL_PROMPT = """You are Prag, a personal assistant that extracts precise inf
 
 Populate answer with one or two sentences maximum — state the exact fact as it appears in the chunks.
 Populate used_chunk_indices with indices of chunks that directly contained the answer.
-If the answer is not present in any chunk, set answer to exactly: "I couldn't find that in your documents." and used_chunk_indices to empty list."""
+If the answer is not present in any chunk, set answer to exactly: "I couldn't find that in your documents." and used_chunk_indices to empty list.
+Ensure that used_chunk_indices is a JSON array of integers like [1, 3, 5], never a string or single integer."""
 
 SYNTHESIS_PROMPT = """You are Prag, a personal assistant that generates rich, well-structured content about a person using their document context.
 
 Populate answer with comprehensive, impressive content — do not be brief. Use all relevant information across all chunks. Write in first person. Use short paragraphs or bullets where appropriate. Do not add filler phrases like "Based on the context..." — write the content directly. Only use information present in the chunks.
-Populate used_chunk_indices with indices of ALL chunks you drew information from."""
+Populate used_chunk_indices with indices of ALL chunks you drew information from.
+Ensure that used_chunk_indices is a JSON array of integers like [1, 3, 5], never a string or single integer. If no relevant information is found in any chunk, set answer to exactly: "I couldn't find that in your documents." and used_chunk_indices to empty list.
+"""
 
 
 def format_context(chunks: list[dict]) -> str:
