@@ -327,7 +327,13 @@ GROQ_API_KEY=your_groq_key
 On every startup, Render will sync your Drive folder and update the index before serving requests.
 
 ---
+## Contributing
 
+Contributions, suggestions, and feedback are welcome! Whether it's fixing a bug, improving documentation, or proposing a new feature, feel free to open an issue or submit a pull request.
+
+> If you find this project useful or interesting, consider giving it a ⭐ — it helps others discover it and motivates further development.
+
+---
 ## License
 
 MIT
