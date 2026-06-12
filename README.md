@@ -22,16 +22,17 @@ PRAG lets you just ask.
 
 ## Features
 
-- **Natural language queries** — ask "what is my CGPA?" or "what are my technical skills?" and get precise answers
-- **Hybrid search** — combines semantic vector search with BM25 keyword search via Qdrant's native sparse+dense fusion — catches both meaning-based and exact matches like scores, IDs, and specific terms
-- **Query intelligence** — automatic spell correction, query rewriting, and classification into factual vs synthesis queries before retrieval
+- **Natural language queries** — ask questions in natural language and get precise answers
+- **Hybrid search** — combines semantic vector search with BM25 keyword search to catch both meaning-based and exact matches (scores, IDs, and specific terms)
+- **Query intelligence** — spell correction, query rewriting, and classification (factual vs synthesis queries) for improved retrieval and generation
 - **Multi-format ingestion** — PDF, DOCX, images (with OCR), Markdown, and plain text
 - **OCR support** — extracts text from scanned documents using Tesseract with LLM-based cleaning for noisy output
-- **Google Drive sync** — syncs on startup, ingests new files, re-ingests changed files, removes deleted ones using Drive's native `md5Checksum` for efficient diffing
-- **Source citations** — every answer cites which document it came from, with a clickable link back to the file in Google Drive
+- **Google Drive sync** — using native `md5Checksum` diffing for incremental re-ingestion and automatic vector cleanup on file deletion
+- **Source citations** — every answer cites which document it came from, along with respective drive url
 - **Provider-agnostic LLM** — Ollama locally, Groq on deployment — swap with a single env var
 - **PWA frontend** — installable on mobile, works like a native app
 - **LangSmith tracing** — full observability into prompts, retrieved chunks, and LLM responses (disabled in production)
+- **Dockerized Deployment** — Fully containerized with Docker for consistent, one-command setup across local development and production environments.
 
 ---
 
@@ -136,12 +137,14 @@ prag/
 | Component | Tool |
 |---|---|
 | LLM (local) | Any Ollama model depending on your hardware |
-| LLM (deployed) | openai/gpt-oss-20b or llama-3.1-8b via Groq API |
+| LLM (deployed) | openai/gpt-oss-20b or llama-3.3-70b via Groq API |
 | Embeddings | fastembed |
-| Vector DB | Qdrant (local Docker) / Qdrant Cloud |
+| Vector DB | Qdrant Cloud |
 | PDF parsing | pypdf + pymupdf |
 | OCR | Tesseract via pytesseract |
 | DOCX parsing | python-docx |
+| Markdown parsing | markdown + BeautifulSoup |
+| LLM Utilities | LangChain |
 | Text splitting | LangChain RecursiveCharacterTextSplitter |
 | Drive integration | Google Drive API v3 (service account) |
 | Config | pydantic-settings |
@@ -155,7 +158,7 @@ prag/
 ### Prerequisites
 
 - Python 3.11+
-- [Ollama](https://ollama.com) installed and running
+- [Ollama](https://ollama.com) installed and running (if want to run LLM locally)
 - Tesseract installed (`sudo apt install tesseract-ocr tesseract-ocr-hin`)
 - A [Qdrant Cloud](https://cloud.qdrant.io) free cluster
 - A Google Cloud service account with Drive API enabled
@@ -173,8 +176,7 @@ pip install -r requirements.txt
 ### 2. Pull Ollama models
 
 ```bash
-ollama pull nomic-embed-text
-ollama pull qwen2.5:3b-instruct
+ollama pull qwen2.5:3b-instruct # or any model
 ```
 
 ### 3. Configure environment
@@ -194,23 +196,23 @@ GROQ_API_KEY=                         # required if MODEL_PROVIDER=groq
 # Ollama
 OLLAMA_BASE_URL=http://localhost:11434
 
-# Embeddings
-EMBED_MODEL=nomic-embed-text
+# Embeddings (set or use default fastembed model)
+EMBED_MODEL=
 
 # Qdrant
 QDRANT_URL=https://your-cluster.qdrant.io
 QDRANT_API_KEY=your_qdrant_api_key
 QDRANT_COLLECTION=personal-rag
-QDRANT_VECTOR_SIZE=768 # or according to your embedding model
+QDRANT_VECTOR_SIZE=384 # or according to your embedding model
 
 # Google Drive
-GOOGLE_CREDENTIALS_PATH=gdrive_credentials.json
-GOOGLE_CREDENTIALS_JSON=              # paste full JSON here for Render deployment
+GOOGLE_CREDENTIALS_PATH=gdrive_credentials.json    # only for local working, never push this file
+GOOGLE_CREDENTIALS_JSON=              # paste full JSON here for Cloud deployment
 DRIVE_FOLDER_ID=your_drive_folder_id
 
 # LangSmith (optional)
 LANGSMITH_TRACING=false
-LANGSMITH_API_KEY=
+LANGSMITH_API_KEY=your_langsmith_key
 LANGSMITH_PROJECT=personal-rag
 
 # Logging
@@ -230,6 +232,9 @@ LOG_LEVEL=WARNING
 ```bash
 python cli.py
 ```
+> **or use with frontend client through API**
+
+Check out [PRAG Web](https://github.com/subrat-dwi/prag-web)
 
 On first run, PRAG syncs your Drive folder, ingests all supported files, and starts the chat interface.
 
@@ -244,14 +249,12 @@ Sync complete.
 Personal RAG — ask anything about your documents.
 Type 'exit' to quit.
 
-You: what is my email
-Prag: Your email is tonystark69@gmail.com [source: Tony_Resume.docx]
-
 You: what is my CGPA
-Prag: Your CGPA is 8.36 [source: Tony_Resume.pdf]
+Prag: Your CGPA is 8.36 
+[source: Tony_Marksheet.pdf]
 
-You: what are my technical skills
-Prag: Your technical skills include Go, Python, JavaScript, TypeScript, Java, and C for languages...
+You: write an intro for me for backend dev interview
+Prag: Hello, My name is...
 [source: Tony_Resume.docx]
 ```
 
@@ -265,7 +268,7 @@ Create `.md` or `.txt` files in your Drive folder for information not in your do
 Name: Tony Stark
 Phone: +91 XXXXXXXXXX
 Blood Group: B+
-Date of Birth: XX/XX/XXXX
+Hobbies: Music, coding, watching movies
 ```
 
 PRAG will ingest these on next startup and answer questions from them.
@@ -302,7 +305,7 @@ nothing leaves your machine.
 
 ## Deployment
 
-PRAG is designed to deploy on [Render](https://render.com) free tier with Qdrant Cloud for vector storage.
+PRAG is designed to deploy on [Render](https://render.com) or any cloud hosting platform with Qdrant Cloud for vector storage.
 
 1. Push to GitHub
 2. Create a new **Web Service** on Render, connect your repo
