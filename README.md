@@ -2,18 +2,38 @@
 
 > A cloud-deployed personal assistant that answers questions about you using your own documents.
 
+[![Python](https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/fastapi-0.110+-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![LangChain](https://img.shields.io/badge/langchain-0.2+-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![Qdrant](https://img.shields.io/badge/qdrant-cloud-DC244C?style=for-the-badge&logo=qdrant&logoColor=white)](https://qdrant.tech/)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![LangSmith](https://img.shields.io/badge/langsmith-tracing-F75A00?style=for-the-badge)](https://smith.langchain.com/)
+[![Tesseract](https://img.shields.io/badge/tesseract-ocr-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://github.com/tesseract-ocr/tesseract)
+[![License](https://img.shields.io/badge/license-MIT-111827?style=for-the-badge)](./LICENSE)
+
 ## Table of Contents
-- [Why PRAG](#why-prag)
-- [Demo](#demo-using-prag-web-client)
-- [Features](#features)
-- [How It Works](#how-it-works)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [Setup](#setup)
-- [Usage](#usage)
-- [Security & Data Privacy](#security--data-privacy)
-- [Deployement](#deployment)
-- [Contributing](#contributing)
+- [PRAG — Personal RAG System](#prag--personal-rag-system)
+  - [Table of Contents](#table-of-contents)
+  - [Why PRAG](#why-prag)
+  - [Demo (using PRAG Web Client)](#demo-using-prag-web-client)
+  - [Features](#features)
+  - [How It Works](#how-it-works)
+  - [Project Structure](#project-structure)
+  - [Tech Stack](#tech-stack)
+  - [Setup](#setup)
+    - [Prerequisites](#prerequisites)
+    - [1. Clone and install](#1-clone-and-install)
+    - [2. Pull Ollama models](#2-pull-ollama-models)
+    - [3. Configure environment](#3-configure-environment)
+    - [4. Google Drive setup](#4-google-drive-setup)
+    - [5. Run](#5-run)
+  - [Usage](#usage)
+    - [Adding personal facts directly](#adding-personal-facts-directly)
+    - [Supported file types](#supported-file-types)
+  - [Security \& Data Privacy](#security--data-privacy)
+  - [Deployment](#deployment)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ---
 ## Why PRAG
@@ -59,37 +79,30 @@ PRAG lets you just ask.
 
 ## How It Works
 
-```
-Google Drive folder
-        │
-        ▼
-Drive Sync (on startup)
-  ├── compare md5Checksum against stored hash in Qdrant
-  ├── ingest new / re-ingest changed / remove deleted files
-        │
-        ▼
-Ingestion Pipeline
-  parse → chunk → embed → store
-  │         │        │       │
-  │    RecursiveChar  │    Qdrant
-  │    TextSplitter   │    Cloud
-  │               fastembed
-  │               
-  parsers:
-  ├── PDF (pypdf + OCR fallback)
-  ├── DOCX (python-docx)
-  ├── Image (pytesseract)
-  ├── Markdown
-  └── Plain text
-        │
-        ▼
-User Query (CLI or API)
-        │
-        ▼
-Embed query → Qdrant similarity search → top-k chunks
-        │
-        ▼
-LLM (local / cloud) answers using retrieved context
+```mermaid
+flowchart TD
+    A([Google Drive]) -->|md5Checksum diff| B
+
+    subgraph INGEST ["Ingestion pipeline"]
+        direction LR
+        B[Parse\nPDF · DOCX · Image OCR · MD] --> C[Chunk + Embed\nRecursiveChar · fastembed]
+    end
+
+    C --> D[(Qdrant Cloud)]
+
+    E([User query]) --> F[Query intelligence\nRewrite · Intent classify]
+    F --> G
+
+    subgraph RETRIEVAL ["Hybrid retrieval"]
+        direction LR
+        G[Dense — semantic] & H[Sparse — BM25] --> I[Score fusion → top-k]
+    end
+
+    D --> G
+    D --> H
+
+    I --> J[LLM\nOllama / Groq]
+    J --> K([Cited answer\nPydantic · LangSmith])
 ```
 
 ---
