@@ -364,4 +364,4 @@ Contributions, suggestions, and feedback are welcome! Whether it's fixing a bug,
 ---
 ## License
 
-MIT
+This project is licensed under the [MIT License](./LICENSE)
