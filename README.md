@@ -2,6 +2,21 @@
 
 > A cloud-deployed personal assistant that answers questions about you using your own documents.
 
+## Table of Contents
+- [Why PRAG](#why-prag)
+- [Demo](#demo-using-prag-web-client)
+- [Features](#features)
+- [How It Works](#how-it-works)
+- [Project Structure](#project-structure)
+- [Tech Stack](#tech-stack)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Security & Data Privacy](#security--data-privacy)
+- [Deployement](#deployment)
+- [Contributing](#contributing)
+
+---
+## Why PRAG
 PRAG solves a specific everyday problem:
 
 ```
